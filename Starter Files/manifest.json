@@ -1,38 +1,47 @@
 {
   "manifest_version": 3,
-  "name": "Your Chrome Extension Name",
+  "name": "AZ AI Extension",
   "version": "0.1",
-  "author": "First Last",
+  "author": "Shoaib Samim",
   "description": "A description about your Chrome Extension...",
   "permissions": [
-    ""
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting"
   ],
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://maang.in/*"
       ],
       "js": [
+        "abc.js",
+        "def.js",
         "content.js"
-      ]
+      ],
+      "type": "module"
     }
   ],
   "background": {
     "service_worker": "background.js"
   },
-  "web_accessible_resources" : [
+  "web_accessible_resources": [
     {
-      "resources": [],
-      "matches" : ["<all_urls>"]
+      "resources": [
+        "assets/bookmark.png",
+        "inject.js"
+      ],
+      "matches": ["https://maang.in/*"]
     }
   ],
   "action": {
     "default_icon": {
-      "16": "logo.png",
-      "24": "logo.png",
-      "32": "logo.png"
+      "16": "assets/ext-icon.png",
+      "24": "assets/ext-icon.png",
+      "32": "assets/ext-icon.png"
     },
-    "default_popup": "index.html",
+    "default_popup": "popup.html",
     "default_title": "A tooltip popup description when you hover over the Chrome Extension icon."
   }
 }
