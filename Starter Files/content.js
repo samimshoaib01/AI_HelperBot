@@ -225,19 +225,65 @@ async function fetchAIResponse(messageText) {
     }
 }
 
+
+// Create a MutationObserver to monitor the light/dark mode switch
+const modeObserver = new MutationObserver((mutations) => {
+    mutations.forEach((mutation) => {
+        if (mutation.type === "attributes") {
+            const switchButton = mutation.target;
+            const isDarkMode = switchButton.getAttribute("aria-checked") === "true";
+            if (isDarkMode) {
+                console.log("Dark mode is now enabled.");
+                // Add logic to apply dark mode changes
+            } else {
+                console.log("Light mode is now enabled.");
+                // Add logic to apply light mode changes
+            }
+        }
+    });
+});
+
+// Start observing the light/dark mode switch
+function observeModeSwitch() {
+    const modeSwitch = document.querySelector(".ant-switch[role='switch']");
+    if (modeSwitch) {
+        modeObserver.observe(modeSwitch, { attributes: true, attributeFilter: ["aria-checked", "class"] });
+        console.log("Started observing the mode switch for changes.");
+    } else {
+        console.log("Mode switch not found. Retrying...");
+        setTimeout(observeModeSwitch, 1000); // Retry after 1 second if the switch isn't available yet
+    }
+}
+
+// Initialize the observer
+observeModeSwitch();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 function addChatbox() {
     const problemKey = getProblemKey();
 
-    // Load chat history using chrome.storage.local
     loadChat(problemKey).then((chatHistory) => {
         const chatboxHTML = `
             <div id="CHAT_CONTAINER_ID" style="
                 display: none;
                 position: fixed;
-                bottom: 20px;
-                right: 20px;
-                width: 350px;
+                bottom: 15px;
+                left: 73px;
+                width: calc(50% - 47px);
                 background-color: #ffffff;
+                border: 2px solid #0dcaf0;
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -245,19 +291,18 @@ function addChatbox() {
                 transition: all 0.3s ease;
             ">
                 <div id="chat-header" style="
-                    background: linear-gradient(135deg, #2193b0, #6dd5ed);
-                    color: white;
-                    padding: 15px;
+                    background:rgb(209, 239, 250);
+                    color: #333;
+                    padding: 6px;
                     display: flex;
                     justify-content: space-between;
                     align-items: center;
-                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
                 ">
                     <span style="font-weight: 600; font-size: 16px;">Coding Assistant</span>
                     <button id="close-chatbox" style="
                         background: none;
                         border: none;
-                        color: white;
+                        color: #333;
                         cursor: pointer;
                         font-size: 18px;
                         padding: 5px;
@@ -266,7 +311,7 @@ function addChatbox() {
                     ">×</button>
                 </div>
                 <div id="chat-content" style="
-                    height: 380px;
+                    height:  508px;
                     overflow-y: auto;
                     padding: 16px;
                     background-color: #f8f9fa;
@@ -276,7 +321,6 @@ function addChatbox() {
                 <div id="chat-input" style="
                     padding: 12px;
                     background-color: white;
-                    border-top: 1px solid #eee;
                     display: flex;
                     gap: 8px;
                 ">
@@ -290,38 +334,52 @@ function addChatbox() {
                         transition: border-color 0.2s;
                     " placeholder="Type your message...">
                     <button id="send-message" style="
-                        background: linear-gradient(135deg, #2193b0, #6dd5ed);
-                        color: white;
+                        background: #a4e6ff;
+                        color: #333;
                         border: none;
                         border-radius: 8px;
                         padding: 10px 20px;
                         cursor: pointer;
                         font-weight: 500;
-                        transition: opacity 0.2s;
+                        transition: all 0.2s;
                     ">Send</button>
                 </div>
             </div>
-        `;
+        `
+           
+        ;
         document.body.insertAdjacentHTML("beforeend", chatboxHTML);
 
         const chatbox = document.getElementById("CHAT_CONTAINER_ID");
-        const chatMessageInput = document.getElementById("chat-message-input");
+        const chatHeader = document.getElementById("chat-header");
+        const chatContent = document.getElementById("chat-content");
+        const chatInput = document.getElementById("chat-input");
         const chatMessages = document.getElementById("chat-messages");
         const closeChatboxButton = document.getElementById("close-chatbox");
         const sendMessageButton = document.getElementById("send-message");
+        const chatMessageInput = document.getElementById("chat-message-input");
+
 
         // Add hover effects
         closeChatboxButton.addEventListener("mouseover", () => closeChatboxButton.style.opacity = "1");
         closeChatboxButton.addEventListener("mouseout", () => closeChatboxButton.style.opacity = "0.8");
-        sendMessageButton.addEventListener("mouseover", () => sendMessageButton.style.opacity = "0.9");
-        sendMessageButton.addEventListener("mouseout", () => sendMessageButton.style.opacity = "1");
+        sendMessageButton.addEventListener("mouseover", () => {
+            sendMessageButton.style.background = "#0dcaf0";
+            sendMessageButton.style.color = "white";
+        });
+        sendMessageButton.addEventListener("mouseout", () => {
+            sendMessageButton.style.background = "#a4e6ff";
+            sendMessageButton.style.color = "#333";
+        });
         
         // Focus effect for input
         chatMessageInput.addEventListener("focus", () => {
-            chatMessageInput.style.borderColor = "#2193b0";
+            chatMessageInput.style.borderColor = "#0dcaf0";
+            chatMessageInput.style.boxShadow = "0 0 0 3px rgba(13, 202, 240, 0.2)";
         });
         chatMessageInput.addEventListener("blur", () => {
-            chatMessageInput.style.borderColor = "#e0e0e0";
+            chatMessageInput.style.borderColor = "#0dcaf0";
+            chatMessageInput.style.boxShadow = "none";
         });
 
         // Load previous chat history into chatbox
@@ -396,9 +454,9 @@ function addChatbox() {
         messageBubble.style.maxWidth = "80%";
         messageBubble.style.padding = "12px 16px";
         messageBubble.style.borderRadius = sender === "You" ? "18px 18px 4px 18px" : "18px 18px 18px 4px";
-        messageBubble.style.backgroundColor = sender === "You" ? "#2193b0" : "white";
-        messageBubble.style.color = sender === "You" ? "white" : "#333";
-        messageBubble.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
+        messageBubble.style.backgroundColor = sender === "You" ? "#a4e6ff" : "white";
+        messageBubble.style.color = "#333";
+        messageBubble.style.border = `2px solid ${sender === "You" ? "#0dcaf0" : "#e0e0e0"}`;
 
         const senderName = document.createElement("div");
         senderName.style.fontSize = "12px";
@@ -415,6 +473,7 @@ function addChatbox() {
                     padding: 12px;
                     margin-top: 8px;
                     position: relative;
+                    border: 2px solid #0dcaf0;
                 ">
                     <pre style="
                         margin: 0;
@@ -427,8 +486,8 @@ function addChatbox() {
                         position: absolute;
                         top: 8px;
                         right: 8px;
-                        background: rgba(255,255,255,0.1);
-                        color: #fff;
+                        background: #0dcaf0;
+                        color: white;
                         border: none;
                         padding: 4px 8px;
                         border-radius: 4px;
@@ -443,6 +502,7 @@ function addChatbox() {
             if (isError) {
                 messageBubble.style.backgroundColor = "#fee";
                 messageBubble.style.color = "#c00";
+                messageBubble.style.border = "2px solid #c00";
             }
         }
 
