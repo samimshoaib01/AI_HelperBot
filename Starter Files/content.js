@@ -6,7 +6,77 @@
 // Description: Handles all the webpage-level activities (e.g., manipulating page data, etc.)
 // License: MIT
 
+// Theme configurations
+const themes = {
+    light: {
+        container: {
+            background: '#ffffff',
+            border: '2px solid #0dcaf0'
+        },
+        header: {
+            background: '#a4e6ff',
+            color: '#333'
+        },
+        content: {
+            background: '#f8f9fa'
+        },
+        input: {
+            background: 'white',
+            border: '1px solid #e0e0e0',
+            color: '#333'
+        },
+        sendButton: {
+            background: '#a4e6ff',
+            color: '#333'
+        },
+        message: {
+            user: {
+                background: '#a4e6ff',
+                color: '#333'
+            },
+            ai: {
+                background: 'white',
+                color: '#333'
+            }
+        }
+    },
+    dark: {
+        container: {
+            background: '#161d29',
+            border: '2px solid #0dcaf0'
+        },
+        header: {
+            background: '#314059',
+            color: '#ffffff'
+        },
+        content: {
+            background: '#161d29'
+        },
+        input: {
+            background: '#2c2c2c',
+            border: '1px solid #404040',
+            color: '#ffffff'
+        },
+        sendButton: {
+            background: '#404040',
+            color: '#ffffff'
+        },
+        message: {
+            user: {
+                background: '#404040',
+                color: '#ffffff'
+            },
+            ai: {
+                background: '#2c2c2c',
+                color: '#ffffff'
+            }
+        }
+    }
+};
+
+
 let lastPageVisited = "";
+
 
 // Define global variables to hold the editorial code and hints data
 let editorialCode = [];
@@ -226,48 +296,69 @@ async function fetchAIResponse(messageText) {
 }
 
 
-// Create a MutationObserver to monitor the light/dark mode switch
-const modeObserver = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => {
-        if (mutation.type === "attributes") {
-            const switchButton = mutation.target;
-            const isDarkMode = switchButton.getAttribute("aria-checked") === "true";
-            if (isDarkMode) {
-                console.log("Dark mode is now enabled.");
-                // Add logic to apply dark mode changes
-            } else {
-                console.log("Light mode is now enabled.");
-                // Add logic to apply light mode changes
-            }
-        }
+
+function applyTheme(isDarkMode) {
+    const theme = isDarkMode ? themes.dark : themes.light;
+    const container = document.getElementById('CHAT_CONTAINER_ID');
+    if (!container) return;
+
+    // Apply container styles
+    Object.assign(container.style, {
+        backgroundColor: theme.container.background,
+        border: theme.container.border
     });
-});
 
-// Start observing the light/dark mode switch
-function observeModeSwitch() {
-    const modeSwitch = document.querySelector(".ant-switch[role='switch']");
-    if (modeSwitch) {
-        modeObserver.observe(modeSwitch, { attributes: true, attributeFilter: ["aria-checked", "class"] });
-        console.log("Started observing the mode switch for changes.");
-    } else {
-        console.log("Mode switch not found. Retrying...");
-        setTimeout(observeModeSwitch, 1000); // Retry after 1 second if the switch isn't available yet
+    // Apply header styles
+    const header = document.getElementById('chat-header');
+    if (header) {
+        Object.assign(header.style, {
+            background: theme.header.background,
+            color: theme.header.color
+        });
     }
+
+    // Apply content styles
+    const content = document.getElementById('chat-content');
+    if (content) {
+        Object.assign(content.style, {
+            backgroundColor: theme.content.background
+        });
+    }
+
+    // Apply input styles
+    const input = document.getElementById('chat-message-input');
+    if (input) {
+        Object.assign(input.style, {
+            backgroundColor: theme.input.background,
+            border: theme.input.border,
+            color: theme.input.color
+        });
+    }
+
+    // Apply send button styles
+    const sendButton = document.getElementById('send-message');
+    if (sendButton) {
+        Object.assign(sendButton.style, {
+            background: theme.sendButton.background,
+            color: theme.sendButton.color
+        });
+    }
+
+    // Update message bubbles
+    const messages = document.querySelectorAll('#chat-messages > div');
+    messages.forEach(messageDiv => {
+        const messageBubble = messageDiv.querySelector('div:last-child');
+        if (!messageBubble) return;
+
+        const isUserMessage = messageDiv.style.alignItems === 'flex-end';
+        const messageTheme = isUserMessage ? theme.message.user : theme.message.ai;
+        
+        Object.assign(messageBubble.style, {
+            backgroundColor: messageTheme.background,
+            color: messageTheme.color
+        });
+    });
 }
-
-// Initialize the observer
-observeModeSwitch();
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -282,8 +373,8 @@ function addChatbox() {
                 bottom: 15px;
                 left: 73px;
                 width: calc(50% - 47px);
-                background-color: #ffffff;
-                border: 2px solid #0dcaf0;
+                background-color:${themes.light.container.background};
+                border: ${themes.light.container.border};
                 border-radius: 12px;
                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -291,8 +382,8 @@ function addChatbox() {
                 transition: all 0.3s ease;
             ">
                 <div id="chat-header" style="
-                    background:rgb(209, 239, 250);
-                    color: #333;
+                    background:${themes.light.header.background};
+                    color: ${themes.light.header.color};
                     padding: 6px;
                     display: flex;
                     justify-content: space-between;
@@ -314,28 +405,30 @@ function addChatbox() {
                     height:  508px;
                     overflow-y: auto;
                     padding: 16px;
-                    background-color: #f8f9fa;
+                    background-color:${themes.light.content.background};
                 ">
                     <div id="chat-messages"></div>
                 </div>
                 <div id="chat-input" style="
                     padding: 12px;
-                    background-color: white;
+                    background-color: ${themes.light.input.background};
                     display: flex;
                     gap: 8px;
                 ">
                     <input type="text" id="chat-message-input" style="
                         flex: 1;
                         padding: 10px;
-                        border: 1px solid #e0e0e0;
+                        border:  ${themes.light.input.border};
                         border-radius: 8px;
                         outline: none;
                         font-size: 14px;
                         transition: border-color 0.2s;
+                        background-color: ${themes.light.input.background};
+                        color: ${themes.light.input.color};
                     " placeholder="Type your message...">
                     <button id="send-message" style="
-                        background: #a4e6ff;
-                        color: #333;
+                        background: ${themes.light.sendButton.background};
+                        color: ${themes.light.sendButton.color};
                         border: none;
                         border-radius: 8px;
                         padding: 10px 20px;
@@ -349,6 +442,34 @@ function addChatbox() {
            
         ;
         document.body.insertAdjacentHTML("beforeend", chatboxHTML);
+
+               // Initialize theme observer
+               const modeObserver = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.type === "attributes") {
+                        const switchButton = mutation.target;
+                        const isDarkMode = switchButton.getAttribute("aria-checked") === "true";
+                        applyTheme(isDarkMode);
+                    }
+                });
+            });
+    
+            function observeModeSwitch() {
+                const modeSwitch = document.querySelector(".ant-switch[role='switch']");
+                if (modeSwitch) {
+                    modeObserver.observe(modeSwitch, { 
+                        attributes: true, 
+                        attributeFilter: ["aria-checked", "class"] 
+                    });
+                    // Apply initial theme
+                    const isDarkMode = modeSwitch.getAttribute("aria-checked") === "true";
+                    applyTheme(isDarkMode);
+                } else {
+                    setTimeout(observeModeSwitch, 1000);
+                }
+            }
+    
+            observeModeSwitch();
 
         const chatbox = document.getElementById("CHAT_CONTAINER_ID");
         const chatHeader = document.getElementById("chat-header");
