@@ -65,16 +65,49 @@ function addInjectScripts() {
     script.remove();
 
     const script1 = document.createElement("script");
-    script1.src = chrome.runtime.getURL("abc.js");
+    script1.src = chrome.runtime.getURL("prompt.js");
     document.documentElement.appendChild(script1);
 
     const script2 = document.createElement("script");
-    script2.src = chrome.runtime.getURL("def.js");
+    script2.src = chrome.runtime.getURL("scraper.js");
     document.documentElement.appendChild(script2);
 
     script1.remove();
     script2.remove();
 }
+
+function getProblemKey() {
+    const pathname = window.location.pathname;
+    const match = pathname.match(/\/problems\/([\w-]+)/);
+    console.log(match);
+    console.log("key genereation");
+
+    return match ? match[1] : null;
+}
+
+function saveChat(problemKey, chatHistory) {
+    if (problemKey) {
+        const storageObj = {};
+        storageObj[problemKey] = chatHistory; // Store key-value pair
+        chrome.storage.local.set(storageObj, () => {
+            console.log(`Chat history saved for problem key: ${problemKey}`);
+        });
+    }
+}
+
+function loadChat(problemKey) {
+    return new Promise((resolve) => {
+        if (problemKey) {
+            chrome.storage.local.get(problemKey, (result) => {
+                resolve(result[problemKey] || []);
+            });
+        } else {
+            resolve([]);
+        }
+    });
+}
+
+
 
 // Updated listener for messages from the page context
 window.addEventListener("message", (event) => {
@@ -119,34 +152,40 @@ window.addEventListener("message", (event) => {
 });
 
 function addAIChatbotButton() {
-    const targetDiv = document.querySelector(".ant-row.d-flex.gap-4.mt-3.css-19gw05y");
+    const navContainer = document.querySelector(
+        '.coding_nav_bg__HRkIn > ul.d-flex.flex-row.p-0.gap-2.justify-content-between.m-0.hide-scrollbar'
+    );
 
-    if (targetDiv) {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.id = "AI_HELPER_BUTTON_ID";
-        button.className =
-            "ant-btn css-19gw05y ant-btn-default Button_gradient_light_button__ZDAR_ coding_ask_doubt_button__FjwXJ gap-1 py-2 px-3 overflow-hidden";
-        button.style.height = "fit-content";
-        button.innerHTML = `
-            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" height="20" width="20" xmlns="http://www.w3.org/2000/svg">
+    if (navContainer) {
+        const listItem = document.createElement("li");
+        listItem.className = "d-flex flex-row rounded-3 dmsans align-items-center coding_list__V_ZOZ coding_card_mod_unactive__O_IEq";
+        listItem.style.padding = "0.36rem 1rem";
+
+        listItem.innerHTML = `
+            <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true" class="me-1" height="18" width="18" xmlns="http://www.w3.org/2000/svg">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548-.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
             </svg>
             <span class="coding_ask_doubt_gradient_text__FX_hZ">Ask AI</span>
         `;
 
-        targetDiv.appendChild(button);
-
-        addChatbox();
-
-        button.addEventListener("click", () => {
+        listItem.addEventListener("click", () => {
             const chatbox = document.getElementById("CHAT_CONTAINER_ID");
-            chatbox.style.display = chatbox.style.display === "block" ? "none" : "block";
+            if (chatbox) {
+                chatbox.style.display = chatbox.style.display === "block" ? "none" : "block";
+            } else {
+                console.log("Chatbox not found.");
+            }
         });
+
+        navContainer.appendChild(listItem);
+
+        // Ensure the chatbox functionality is initialized
+        addChatbox();
     } else {
-        console.log("Target div not found.");
+        console.log("Navigation container not found.");
     }
 }
+
 
 async function fetchAIResponse(messageText) {
     const apiKey = "AIzaSyDbSYcg4DsyjW0SPv9OkzKcDzY_ejOJTFE"; // Replace with your actual API key
@@ -187,76 +226,250 @@ async function fetchAIResponse(messageText) {
 }
 
 function addChatbox() {
-    const chatboxHTML = `
-        <div id="CHAT_CONTAINER_ID" style="display: none; position: fixed; bottom: 10px; right: 10px; width: 300px; background-color: white; border: 1px solid #007bff; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.1);">
-            <div id="chat-header" style="background-color: #007bff; color: white; padding: 10px; display: flex; justify-content: space-between; align-items: center;">
-                <span>Chatbox</span>
-                <button id="close-chatbox" style="background: none; border: none; color: white; cursor: pointer;">X</button>
-            </div>
-            <div id="chat-content" style="height: 300px; overflow-y: auto; padding: 10px;">
-                <div id="chat-messages"></div>
-            </div>
-            <div id="chat-input" style="padding: 10px; border-top: 1px solid #ddd;">
-                <input type="text" id="chat-message-input" style="width: 80%;" placeholder="Type your message here">
-                <button id="send-message" style="width: 18%; background-color: #007bff; color: white;">Send</button>
-            </div>
-        </div>
-    `;
-    document.body.insertAdjacentHTML("beforeend", chatboxHTML);
+    const problemKey = getProblemKey();
 
-    const chatbox = document.getElementById("CHAT_CONTAINER_ID");
-    const chatMessageInput = document.getElementById("chat-message-input");
-    const chatMessages = document.getElementById("chat-messages");
-    const closeChatboxButton = document.getElementById("close-chatbox");
-    const sendMessageButton = document.getElementById("send-message");
+    // Load chat history using chrome.storage.local
+    loadChat(problemKey).then((chatHistory) => {
+        const chatboxHTML = `
+            <div id="CHAT_CONTAINER_ID" style="
+                display: none;
+                position: fixed;
+                bottom: 20px;
+                right: 20px;
+                width: 350px;
+                background-color: #ffffff;
+                border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                overflow: hidden;
+                transition: all 0.3s ease;
+            ">
+                <div id="chat-header" style="
+                    background: linear-gradient(135deg, #2193b0, #6dd5ed);
+                    color: white;
+                    padding: 15px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                ">
+                    <span style="font-weight: 600; font-size: 16px;">Coding Assistant</span>
+                    <button id="close-chatbox" style="
+                        background: none;
+                        border: none;
+                        color: white;
+                        cursor: pointer;
+                        font-size: 18px;
+                        padding: 5px;
+                        opacity: 0.8;
+                        transition: opacity 0.2s;
+                    ">×</button>
+                </div>
+                <div id="chat-content" style="
+                    height: 380px;
+                    overflow-y: auto;
+                    padding: 16px;
+                    background-color: #f8f9fa;
+                ">
+                    <div id="chat-messages"></div>
+                </div>
+                <div id="chat-input" style="
+                    padding: 12px;
+                    background-color: white;
+                    border-top: 1px solid #eee;
+                    display: flex;
+                    gap: 8px;
+                ">
+                    <input type="text" id="chat-message-input" style="
+                        flex: 1;
+                        padding: 10px;
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        outline: none;
+                        font-size: 14px;
+                        transition: border-color 0.2s;
+                    " placeholder="Type your message...">
+                    <button id="send-message" style="
+                        background: linear-gradient(135deg, #2193b0, #6dd5ed);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        padding: 10px 20px;
+                        cursor: pointer;
+                        font-weight: 500;
+                        transition: opacity 0.2s;
+                    ">Send</button>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML("beforeend", chatboxHTML);
 
-    closeChatboxButton.addEventListener("click", () => {
-        chatbox.style.display = "none";
+        const chatbox = document.getElementById("CHAT_CONTAINER_ID");
+        const chatMessageInput = document.getElementById("chat-message-input");
+        const chatMessages = document.getElementById("chat-messages");
+        const closeChatboxButton = document.getElementById("close-chatbox");
+        const sendMessageButton = document.getElementById("send-message");
+
+        // Add hover effects
+        closeChatboxButton.addEventListener("mouseover", () => closeChatboxButton.style.opacity = "1");
+        closeChatboxButton.addEventListener("mouseout", () => closeChatboxButton.style.opacity = "0.8");
+        sendMessageButton.addEventListener("mouseover", () => sendMessageButton.style.opacity = "0.9");
+        sendMessageButton.addEventListener("mouseout", () => sendMessageButton.style.opacity = "1");
+        
+        // Focus effect for input
+        chatMessageInput.addEventListener("focus", () => {
+            chatMessageInput.style.borderColor = "#2193b0";
+        });
+        chatMessageInput.addEventListener("blur", () => {
+            chatMessageInput.style.borderColor = "#e0e0e0";
+        });
+
+        // Load previous chat history into chatbox
+        chatHistory.forEach(({ sender, message }) => {
+            appendMessageToChat(sender, message, chatMessages);
+        });
+
+        closeChatboxButton.addEventListener("click", () => {
+            chatbox.style.display = "none";
+        });
+
+        // Enter key support
+        chatMessageInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendMessageButton.click();
+            }
+        });
+
+        sendMessageButton.addEventListener("click", async () => {
+            const userMessage = chatMessageInput.value.trim();
+            if (userMessage !== "") {
+                appendMessageToChat("You", userMessage, chatMessages);
+
+                chatMessageInput.value = "";
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+                // Save user's message
+                chatHistory.push({ sender: "You", message: userMessage });
+                saveChat(problemKey, chatHistory);
+
+                try {
+                    const problemDetails = window.getProblemContextAndDetails();
+                    console.log(problemDetails);
+
+                    const editorialText = editorialCode.length > 0
+                        ? `Editorial Code: ${editorialCode.map(entry => `${entry.language}: ${entry.code}`).join("\n")}`
+                        : "No editorial code available.";
+
+                    const hintsText = Object.keys(hints).length > 0
+                        ? `Hints: ${Object.entries(hints).map(([key, value]) => `${key}: ${value}`).join("\n")}`
+                        : "No hints available.";
+
+                    const fullPrompt = window.generatePrompt(problemDetails, hintsText, editorialText, userMessage);
+
+                    console.log(fullPrompt);
+
+                    const aiResponse = await fetchAIResponse(fullPrompt);
+
+                    appendMessageToChat("AI", aiResponse, chatMessages);
+
+                    // Save AI's response
+                    chatHistory.push({ sender: "AI", message: aiResponse });
+                    saveChat(problemKey, chatHistory);
+
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                } catch (error) {
+                    console.error("Error processing AI request:", error);
+                    appendMessageToChat("AI", "Sorry, I couldn't process your request.", chatMessages, true);
+                }
+            }
+        });
     });
 
-    sendMessageButton.addEventListener("click", async () => {
-        const userMessage = chatMessageInput.value.trim();
-        if (userMessage !== "") {
-            const userMessageDiv = document.createElement("div");
-            userMessageDiv.textContent = `You: ${userMessage}`;
-            userMessageDiv.style.color = "#007bff";
-            userMessageDiv.style.textAlign = "right";
-            chatMessages.appendChild(userMessageDiv);
+    function appendMessageToChat(sender, message, chatMessages, isError = false) {
+        const messageDiv = document.createElement("div");
+        messageDiv.style.marginBottom = "16px";
+        messageDiv.style.display = "flex";
+        messageDiv.style.flexDirection = "column";
+        messageDiv.style.alignItems = sender === "You" ? "flex-end" : "flex-start";
 
-            chatMessageInput.value = "";
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        const messageBubble = document.createElement("div");
+        messageBubble.style.maxWidth = "80%";
+        messageBubble.style.padding = "12px 16px";
+        messageBubble.style.borderRadius = sender === "You" ? "18px 18px 4px 18px" : "18px 18px 18px 4px";
+        messageBubble.style.backgroundColor = sender === "You" ? "#2193b0" : "white";
+        messageBubble.style.color = sender === "You" ? "white" : "#333";
+        messageBubble.style.boxShadow = "0 1px 3px rgba(0,0,0,0.1)";
 
-            try {
-                const problemDetails = window.getProblemContextAndDetails();
-                console.log(problemDetails);
+        const senderName = document.createElement("div");
+        senderName.style.fontSize = "12px";
+        senderName.style.marginBottom = "4px";
+        senderName.style.color = "#666";
+        senderName.textContent = sender;
 
-                const editorialText = editorialCode.length > 0
-                    ? `Editorial Code: ${editorialCode.map(entry => `${entry.language}: ${entry.code}`).join("\n")}`
-                    : "No editorial code available.";
-
-                const hintsText = Object.keys(hints).length > 0
-                    ? `Hints: ${Object.entries(hints).map(([key, value]) => `${key}: ${value}`).join("\n")}`
-                    : "No hints available.";
-
-                const fullPrompt = window.generatePrompt(problemDetails, userMessage) + "\n\n" + editorialText + "\n\n" + hintsText;
-
-                console.log(fullPrompt);
-
-                const aiResponse = await fetchAIResponse(fullPrompt);
-
-                const aiMessageDiv = document.createElement("div");
-                aiMessageDiv.textContent = `AI: ${aiResponse}`;
-                aiMessageDiv.style.color = "black";
-                chatMessages.appendChild(aiMessageDiv);
-
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-            } catch (error) {
-                console.error("Error processing AI request:", error);
-                const errorMessageDiv = document.createElement("div");
-                errorMessageDiv.textContent = "AI: Sorry, I couldn't process your request.";
-                errorMessageDiv.style.color = "red";
-                chatMessages.appendChild(errorMessageDiv);
+        if (message.includes("```")) {
+            const codeBlock = extractCodeBlock(message);
+            messageBubble.innerHTML = `
+                <div style="
+                    background: #1e1e1e;
+                    border-radius: 8px;
+                    padding: 12px;
+                    margin-top: 8px;
+                    position: relative;
+                ">
+                    <pre style="
+                        margin: 0;
+                        font-family: 'Fira Code', monospace;
+                        font-size: 13px;
+                        color: #d4d4d4;
+                        overflow-x: auto;
+                    ">${codeBlock}</pre>
+                    <button style="
+                        position: absolute;
+                        top: 8px;
+                        right: 8px;
+                        background: rgba(255,255,255,0.1);
+                        color: #fff;
+                        border: none;
+                        padding: 4px 8px;
+                        border-radius: 4px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        transition: background 0.2s;
+                    " onclick="copyToClipboard(\`${escapeHtml(codeBlock)}\`)">Copy</button>
+                </div>
+            `;
+        } else {
+            messageBubble.textContent = message;
+            if (isError) {
+                messageBubble.style.backgroundColor = "#fee";
+                messageBubble.style.color = "#c00";
             }
         }
-    });
+
+        messageDiv.appendChild(senderName);
+        messageDiv.appendChild(messageBubble);
+        chatMessages.appendChild(messageDiv);
+    }
+
+    function extractCodeBlock(message) {
+        const codeMatch = message.match(/```([\s\S]*?)```/);
+        return codeMatch ? codeMatch[1] : message;
+    }
+
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+    window.copyToClipboard = (text) => {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("Code copied to clipboard!");
+        }).catch((err) => {
+            console.error("Failed to copy text:", err);
+        });
+    };
 }

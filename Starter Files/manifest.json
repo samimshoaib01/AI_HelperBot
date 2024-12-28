@@ -16,8 +16,8 @@
         "https://maang.in/*"
       ],
       "js": [
-        "abc.js",
-        "def.js",
+        "prompt.js",
+        "scraper.js",
         "content.js"
       ],
       "type": "module"

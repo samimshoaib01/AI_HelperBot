@@ -1,6 +1,4 @@
-// prompt.js
-
- function generatePrompt(problemDetails, userMessage) {
+function generatePrompt(problemDetails, hintsText = "No hints available.", editorialText = "No editorial available.", userMessage) {
     const {
         description = "No description available.",
         inputFormat = "No input format provided.",
@@ -28,6 +26,12 @@
         ${constraints}
 
         ${testCasesText}
+
+        Hints:
+        ${hintsText}
+
+        Editorial:
+        ${editorialText}
 
         User's Question:
         ${userMessage}
