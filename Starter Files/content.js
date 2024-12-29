@@ -486,6 +486,37 @@ function getSolutionFromLocalStorage(jsonObject, url) {
 
 let isFirstCall = true; // Tracks whether it's the first API call
 
+let globalChatHistoryContent = ""; // Variable to store all content
+
+function printChatHistory() {
+    const problemKey = getProblemKey(); // Get the problem key from the current URL
+    if (!problemKey) {
+        console.error("Problem key not found.");
+        return;
+    }
+
+    loadChat(problemKey).then((chatHistory) => {
+        if (chatHistory && chatHistory.length > 0) {
+            globalChatHistoryContent = `Chat History for Problem Key: ${problemKey}\n`; // Reset content for new history
+            chatHistory.forEach(({ sender, message }, index) => {
+                const line = `${index + 1}. ${sender}: ${message}\n`;
+                globalChatHistoryContent += line; // Append to the variable
+            });
+            console.log(globalChatHistoryContent); // Display content
+        } else {
+            globalChatHistoryContent = "No chat history found for this problem.\n";
+            console.log(globalChatHistoryContent);
+        }
+    }).catch((error) => {
+        console.error("Failed to load chat history:", error);
+    });
+}
+
+
+
+// After the promise resolves, you can access:
+console.log(globalChatHistoryContent); // All chat content stored here
+
 
 function addChatbox() {
     const problemKey = getProblemKey();
@@ -660,6 +691,7 @@ function addChatbox() {
                     let apiRequestPayload;
         
                     if (isFirstCall) {
+                        
                         // First-time: Send the full prompt
                         const currentUrl = getCurrentUrl();
                         const problemDetails = window.getProblemContextAndDetails();
@@ -683,42 +715,35 @@ function addChatbox() {
                     
                         isFirstCall = false; // Set subsequent calls as non-first
                     } else {
-                        const problemDetails = window.getProblemContextAndDetails();
-                        console.log("in else ",problemDetails);
+                        // 2nd time-time: Send the full prompt
                         const currentUrl = getCurrentUrl();
+                        const problemDetails = window.getProblemContextAndDetails();
+                        console.log("problem deatils :",problemDetails);
+
+
                         const userSolution = getSolutionFromLocalStorage(problemDetails, currentUrl);
                     
-                        console.log("Subsequent call");
+                        const editorialText = editorialCode.length > 0
+                            ? `Editorial Code: ${editorialCode.map(entry => `${entry.language}: ${entry.code}`).join("\n")}`
+                            : "No editorial code available.";
                     
-                        function generateReply(
-                            
-                            userMessage,
-                            userSolution = "No solution provided."
-                        ) {
-                            
-                            const prompt = `
-                                User's Question:
-                                ${userMessage}
-                        
-                                User Solution:
-                                ${userSolution}
-                            `;
-                        
-                            return prompt.trim();
+                        const hintsText = Object.keys(hints).length > 0
+                            ? `Hints: ${Object.entries(hints).map(([key, value]) => `${key}: ${value}`).join("\n")}`
+                            : "No hints available.";
+
+                        console.log("problem deatils :",problemDetails);
+
+                    
+                        let abc = window.generatePrompt(problemDetails, hintsText, editorialText, userMessage, userSolution);
+                        console.log(abc)
+                        function merge(abc, globalChatHistoryContent) {
+                            // Combine the chat history and the generated prompt
+                            const mergedText = `${globalChatHistoryContent}\n\n${abc}`;
+                            return mergedText; // Return the combined text
                         }
                         
-                        
-                        
-                        
-                        
-                        // Build payload
-                        // Fix the payload definition by calling the function properly
-                         apiRequestPayload = generateReply(userMessage, userSolution);
+                        apiRequestPayload= merge();
 
-                        
-                        console.log("Validated API Request Payload:", apiRequestPayload);
-                        
-                    
                         console.log("API Request 2:", apiRequestPayload);
                     }
                     
