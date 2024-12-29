@@ -257,9 +257,81 @@ function addAIChatbotButton() {
 }
 
 
-async function fetchAIResponse(messageText) {
-    const apiKey = "AIzaSyDbSYcg4DsyjW0SPv9OkzKcDzY_ejOJTFE"; // Replace with your actual API key
+
+
+// async function fetchAIResponse(apiRequestPayload) {
+//     const apiKey = "AIzaSyCZeiZWq2Pkmg1FiEpKbfoiBzlbTnMFkHM"; // Replace with your actual API key
+//     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+//     // Construct the request content in the correct format
+//     const messages = Array.isArray(apiRequestPayload)
+//         ? apiRequestPayload.map(({ sender, message }) => ({
+//             role: sender === "You" ? "user" : "model", // "user" or "model" role
+//             parts: [{ text: message }] // Wrap message in the 'parts' array
+//         }))
+//         : [{
+//             role: "user", // Default to "user" if it's a single string
+//             parts: [{ text: apiRequestPayload }]
+//         }];
+    
+//     // Construct the payload with 'contents' array
+//     const payload = {
+//         contents: messages
+//     };
+
+//     try {
+//         const response = await fetch(apiUrl, {
+//             method: "POST",
+//             headers: {
+//                 "Content-Type": "application/json",
+//             },
+//             body: JSON.stringify(payload),
+//         });
+
+//         const responseData = await response.json();
+//         console.log("API Response:", responseData);
+
+//         // Extract the response text from the response structure
+//         if (
+//             responseData &&
+//             responseData.candidates &&
+//             Array.isArray(responseData.candidates) &&
+//             responseData.candidates.length > 0 &&
+//             responseData.candidates[0].content &&
+//             responseData.candidates[0].content.parts &&
+//             Array.isArray(responseData.candidates[0].content.parts)
+//         ) {
+//             return responseData.candidates[0].content.parts[0].text; // Extract the text from the first part
+//         } else {
+//             throw new Error("Unexpected API response structure");
+//         }
+//     } catch (error) {
+//         console.error("Error calling AI API:", error);
+//         throw error;
+//     }
+// }
+
+async function fetchAIResponse(apiRequestPayload) {
+    const apiKey = "AIzaSyCZeiZWq2Pkmg1FiEpKbfoiBzlbTnMFkHM"; // Replace with your actual API key
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    
+    // Construct the request content in the correct format
+    const messages = Array.isArray(apiRequestPayload)
+        ? apiRequestPayload.map(({ sender, message }) => ({
+            role: sender === "You" ? "user" : "model", // "user" or "model" role
+            parts: [{ text: message }] // Wrap message in the 'parts' array
+        }))
+        : [
+            {
+                role: "user", // Default to "user" if it's a single string
+                parts: [{ text: apiRequestPayload }]
+            }
+        ];
+    
+    // Construct the payload with 'contents' array
+    const payload = {
+        contents: messages
+    };
 
     try {
         const response = await fetch(apiUrl, {
@@ -267,25 +339,23 @@ async function fetchAIResponse(messageText) {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                contents: [
-                    {
-                        parts: [{ text: messageText }],
-                    },
-                ],
-            }),
+            body: JSON.stringify(payload),
         });
 
         const responseData = await response.json();
         console.log("API Response:", responseData);
 
+        // Extract the response text from the response structure
         if (
             responseData &&
             responseData.candidates &&
             Array.isArray(responseData.candidates) &&
-            responseData.candidates.length > 0
+            responseData.candidates.length > 0 &&
+            responseData.candidates[0].content &&
+            responseData.candidates[0].content.parts &&
+            Array.isArray(responseData.candidates[0].content.parts)
         ) {
-            return responseData.candidates[0].content.parts[0].text;
+            return responseData.candidates[0].content.parts[0].text; // Extract the text from the first part
         } else {
             throw new Error("Unexpected API response structure");
         }
@@ -294,6 +364,7 @@ async function fetchAIResponse(messageText) {
         throw error;
     }
 }
+
 
 
 
@@ -360,6 +431,60 @@ function applyTheme(isDarkMode) {
     });
 }
 
+function extractLanguage(jsonObject) {
+    return jsonObject.language;
+}
+
+// Function to extract problem ID from URL
+function extractProblemId(url) {
+    const match = url.match(/problems\/.*?-(\d+)/);
+    return match ? match[1] : null;
+}
+
+function getCurrentUrl() {
+    return window.location.href;
+}
+
+// Function to find the key ending with `_problemId_language` in local storage
+function findLocalStorageKey(problemId, language) {
+    const suffix = `_${problemId}_${language}`;
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.endsWith(suffix)) {
+            return key; // Return the matching key
+        }
+    }
+    return null; // No matching key found
+}
+
+// Main function to get the value from local storage
+function getSolutionFromLocalStorage(jsonObject, url) {
+    // No need to parse, since jsonObject is already an object
+
+    // Extract the language
+    const language = extractLanguage(jsonObject);
+
+    // Extract the problem ID
+    const problemId = extractProblemId(url);
+
+    if (problemId && language) {
+        // Find the key in local storage
+        const localStorageKey = findLocalStorageKey(problemId, language);
+
+        if (localStorageKey) {
+            // Retrieve the value from local storage
+            const solution = localStorage.getItem(localStorageKey);
+            return solution ? solution : `No solution found for key: ${localStorageKey}`;
+        } else {
+            return `No key found ending with _${problemId}_${language}`;
+        }
+    } else {
+        return "Problem ID or Language could not be extracted.";
+    }
+}
+
+
+let isFirstCall = true; // Tracks whether it's the first API call
 
 
 function addChatbox() {
@@ -523,45 +648,100 @@ function addChatbox() {
             const userMessage = chatMessageInput.value.trim();
             if (userMessage !== "") {
                 appendMessageToChat("You", userMessage, chatMessages);
-
+        
                 chatMessageInput.value = "";
                 chatMessages.scrollTop = chatMessages.scrollHeight;
-
+        
                 // Save user's message
                 chatHistory.push({ sender: "You", message: userMessage });
                 saveChat(problemKey, chatHistory);
-
+        
                 try {
-                    const problemDetails = window.getProblemContextAndDetails();
-                    console.log(problemDetails);
+                    let apiRequestPayload;
+        
+                    if (isFirstCall) {
+                        // First-time: Send the full prompt
+                        const currentUrl = getCurrentUrl();
+                        const problemDetails = window.getProblemContextAndDetails();
+                        console.log("problem deatils :",problemDetails);
 
-                    const editorialText = editorialCode.length > 0
-                        ? `Editorial Code: ${editorialCode.map(entry => `${entry.language}: ${entry.code}`).join("\n")}`
-                        : "No editorial code available.";
 
-                    const hintsText = Object.keys(hints).length > 0
-                        ? `Hints: ${Object.entries(hints).map(([key, value]) => `${key}: ${value}`).join("\n")}`
-                        : "No hints available.";
+                        const userSolution = getSolutionFromLocalStorage(problemDetails, currentUrl);
+                    
+                        const editorialText = editorialCode.length > 0
+                            ? `Editorial Code: ${editorialCode.map(entry => `${entry.language}: ${entry.code}`).join("\n")}`
+                            : "No editorial code available.";
+                    
+                        const hintsText = Object.keys(hints).length > 0
+                            ? `Hints: ${Object.entries(hints).map(([key, value]) => `${key}: ${value}`).join("\n")}`
+                            : "No hints available.";
 
-                    const fullPrompt = window.generatePrompt(problemDetails, hintsText, editorialText, userMessage);
+                        console.log("problem deatils :",problemDetails);
+                    
+                        apiRequestPayload = window.generatePrompt(problemDetails, hintsText, editorialText, userMessage, userSolution);
+                        console.log("API Request 1:", apiRequestPayload);
+                    
+                        isFirstCall = false; // Set subsequent calls as non-first
+                    } else {
+                        const problemDetails = window.getProblemContextAndDetails();
+                        console.log("in else ",problemDetails);
+                        const currentUrl = getCurrentUrl();
+                        const userSolution = getSolutionFromLocalStorage(problemDetails, currentUrl);
+                    
+                        console.log("Subsequent call");
+                    
+                        function generateReply(
+                            
+                            userMessage,
+                            userSolution = "No solution provided."
+                        ) {
+                            
+                            const prompt = `
+                                User's Question:
+                                ${userMessage}
+                        
+                                User Solution:
+                                ${userSolution}
+                            `;
+                        
+                            return prompt.trim();
+                        }
+                        
+                        
+                        
+                        
+                        
+                        // Build payload
+                        // Fix the payload definition by calling the function properly
+                         apiRequestPayload = generateReply(userMessage, userSolution);
 
-                    console.log(fullPrompt);
-
-                    const aiResponse = await fetchAIResponse(fullPrompt);
-
+                        
+                        console.log("Validated API Request Payload:", apiRequestPayload);
+                        
+                    
+                        console.log("API Request 2:", apiRequestPayload);
+                    }
+                    
+        
+                    console.log("API Request Payload:", apiRequestPayload);
+        
+                    // Now we pass apiRequestPayload correctly to fetchAIResponse
+                    const aiResponse = await fetchAIResponse(apiRequestPayload);
                     appendMessageToChat("AI", aiResponse, chatMessages);
-
-                    // Save AI's response
+        
+                    // Save AI's message
                     chatHistory.push({ sender: "AI", message: aiResponse });
                     saveChat(problemKey, chatHistory);
-
-                    chatMessages.scrollTop = chatMessages.scrollHeight;
+        
                 } catch (error) {
-                    console.error("Error processing AI request:", error);
-                    appendMessageToChat("AI", "Sorry, I couldn't process your request.", chatMessages, true);
+                    appendMessageToChat("AI", "An error occurred. Please try again.", chatMessages);
+                    console.error("Failed to fetch AI response:", error);
                 }
             }
         });
+        
+        
+        
     });
 
     function appendMessageToChat(sender, message, chatMessages, isError = false) {

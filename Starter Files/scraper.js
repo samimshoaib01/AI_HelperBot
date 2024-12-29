@@ -1,5 +1,5 @@
-// Function to extract problem context, language, pixel, and additional content
- function getProblemContextAndDetails() {
+// Function to extract problem context, language, and additional details
+function getProblemContextAndDetails() {
     // Select all div elements with class `w-100`
     const divs = document.querySelectorAll('div.w-100');
 
@@ -11,14 +11,23 @@
     const sampleTestCases = [];
     let language = '';
     let pixel = '';
-    let extractedText = 'No text found';
 
-    // Helper function to get plain text from an element
+    // Helper function to get plain text from an element and clean up repeated patterns
     function getPlainText(element) {
-        return element ? element.textContent.trim() : 'No content found';
+        if (!element) return 'No content found';
+
+        return element.textContent
+            .trim()
+            // Remove repeated LaTeX-style variables like NNN or AAA
+            .replace(/([A-Z]+)(\\textbf{\1})+/g, '$1') // e.g., NNN\textbf{NNN} -> NNN
+            // Remove LaTeX formatting like \textbf{}
+            .replace(/\\textbf{.*?}/g, '')
+            // Remove repeated standalone words (e.g., NNN NNN)
+            .replace(/(\b\w+\b)(\s+\1)+/g, '$1')
+            .trim();
     }
 
-    // Extract problem description, input format, output format, and constraints
+    // Extract problem description, input format, and output format
     for (const div of divs) {
         const heading = div.querySelector('h5.problem_heading');
         if (heading && heading.textContent.trim() === 'Description') {
@@ -45,41 +54,36 @@
 
     // Extract constraints from the fourth div with the specified class
     const constraintDivs = document.querySelectorAll('div.undefined.markdown-renderer');
-
     if (constraintDivs.length >= 4) {
         const fourthDiv = constraintDivs[3];
 
-        // Find all text content inside the fourth div, including katex-html spans and regular text nodes
+        // Extract visible text including katex-html and regular text nodes
         const katexHtmlSpans = fourthDiv.querySelectorAll('.katex-html');
         const otherTextNodes = Array.from(fourthDiv.childNodes)
             .filter(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim().length > 0)
             .map(node => node.textContent.trim());
 
-        // Extract visible text from .katex-html spans
         const katexText = Array.from(katexHtmlSpans)
-            .map(span => {
-                return span.innerHTML
+            .map(span =>
+                span.innerHTML
                     .replace(
                         /<span class="msupsub">.*?<span class="vlist-t">.*?<span class="mord mtight">(.*?)<\/span>.*?<\/span>/g,
                         '^$1' // Convert superscripts into "^" notation
                     )
                     .replace(/<[^>]+>/g, '') // Remove all remaining HTML tags
-                    .trim();
-            })
+                    .trim()
+            )
             .filter(text => text); // Remove empty results
 
-        // Combine text from katex-html and other text nodes
         constraints = [...katexText, ...otherTextNodes]
-            .join(' ') // Join multiple expressions with a single space
-            .replace(/\s+/g, ' ') // Replace multiple spaces with a single space
-            .replace(/[^a-zA-Z0-9≤≥.,^×\- ]/g, '') // Remove unwanted characters
-            .trim(); // Remove leading/trailing spaces
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .replace(/[^a-zA-Z0-9≤≥.,^×\- ]/g, '')
+            .trim();
     }
 
     // Extract sample test cases
     const testCaseDivs = document.querySelectorAll('div.coding_input_format_container__iYezu.mb-0.flex-grow-1.p-3');
-
-    // Iterate through the test case divs to extract inputs and outputs
     for (let i = 0; i < testCaseDivs.length; i += 2) {
         const inputDiv = testCaseDivs[i]?.querySelector('div.coding_input_format__pv9fS');
         const outputDiv = testCaseDivs[i + 1]?.querySelector('div.coding_input_format__pv9fS');
@@ -101,12 +105,6 @@
         }
     });
 
-    // Extract text content from the specified div
-    const divElement = document.querySelector('.view-lines.monaco-mouse-cursor-text');
-    if (divElement) {
-        extractedText = divElement.innerText.trim();
-    }
-
     // Return all extracted details
     return {
         description,
@@ -115,11 +113,9 @@
         constraints,
         sampleTestCases,
         language,
-        pixel,
-        extractedText
+        pixel
     };
 }
-
 
 // Attach function to the global window object
 window.getProblemContextAndDetails = getProblemContextAndDetails;

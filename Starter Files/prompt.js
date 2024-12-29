@@ -1,4 +1,10 @@
-function generatePrompt(problemDetails, hintsText = "No hints available.", editorialText = "No editorial available.", userMessage) {
+function generatePrompt(
+    problemDetails,
+    hintsText = "No hints available.",
+    editorialText = "No editorial available.",
+    userMessage,
+    userSolution = "No solution provided."
+) {
     const {
         description = "No description available.",
         inputFormat = "No input format provided.",
@@ -35,6 +41,9 @@ function generatePrompt(problemDetails, hintsText = "No hints available.", edito
 
         User's Question:
         ${userMessage}
+
+        User Solution:
+        ${userSolution}
     `;
 
     return prompt.trim();
